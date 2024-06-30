@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -16,6 +17,10 @@ func main() {
 		"csv",
 		"problems.csv",
 		"a csv file in the format of 'question,answer' (default 'problems.csv')",
+	)
+
+	limitFlag := flag.Int(
+		"limit", 30, "the time limit for the quiz in seconds (default 30)",
 	)
 
 	flag.Parse()
@@ -27,9 +32,16 @@ func main() {
 
 	r := csv.NewReader(file)
 
+	scanner := bufio.NewScanner(os.Stdin)
+
 	nAsked, nCorrect := 0, 0
 
-	scanner := bufio.NewScanner(os.Stdin)
+	timer := time.NewTimer(time.Duration(*limitFlag) * time.Second)
+
+	go func() {
+		<-timer.C
+		exit(file, nAsked, nCorrect)
+	}()
 
 	for {
 		record, err := r.Read()
@@ -43,16 +55,20 @@ func main() {
 		nAsked++
 		fmt.Printf("Problem #%d: %s = ", nAsked, record[0])
 		scanner.Scan()
+
 		answer := strings.Trim(scanner.Text(), " ")
 		result := strings.Trim(record[1], " ")
 
 		if answer == result {
 			nCorrect++
-		} else {
-			log.Println("answer:", answer)
-			log.Println("response:", record[1])
 		}
 	}
 
-	fmt.Printf("You scored %d out of %d.\n", nCorrect, nAsked)
+	exit(file, nAsked, nCorrect)
+}
+
+func exit(file *os.File, nAsked, Ncorrect int) {
+	fmt.Printf("\nYou scored %d out of %d.\n", Ncorrect, nAsked)
+	file.Close()
+	os.Exit(0)
 }
