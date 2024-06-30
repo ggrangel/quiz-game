@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -13,7 +11,7 @@ import (
 )
 
 func main() {
-	csvFlag := flag.String(
+	csvFilename := flag.String(
 		"csv",
 		"problems.csv",
 		"a csv file in the format of 'question,answer' (default 'problems.csv')",
@@ -25,46 +23,51 @@ func main() {
 
 	flag.Parse()
 
-	file, err := os.Open(*csvFlag)
+	file, err := os.Open(*csvFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	r := csv.NewReader(file)
+	lines, err := r.ReadAll()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r := csv.NewReader(file)
-
-	scanner := bufio.NewScanner(os.Stdin)
-
-	nAsked, nCorrect := 0, 0
+	problems := parseLines(lines)
+	nCorrect := 0
 
 	timer := time.NewTimer(time.Duration(*limitFlag) * time.Second)
-
 	go func() {
 		<-timer.C
-		exit(file, nAsked, nCorrect)
+		exit(file, len(problems), nCorrect)
 	}()
 
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		nAsked++
-		fmt.Printf("Problem #%d: %s = ", nAsked, record[0])
-		scanner.Scan()
-
-		answer := strings.Trim(scanner.Text(), " ")
-		result := strings.Trim(record[1], " ")
-
-		if answer == result {
+	for i, p := range problems {
+		fmt.Printf("Problem #%d: %s = ", i, p.question)
+		var answer string
+		fmt.Scanf("%s", &answer) // Scanf already trims the spaces
+		if answer == p.answer {
 			nCorrect++
 		}
 	}
 
-	exit(file, nAsked, nCorrect)
+	exit(file, len(problems), nCorrect)
+}
+
+func parseLines(lines [][]string) []problem {
+	ret := make([]problem, len(lines))
+	for i, line := range lines {
+		ret[i] = problem{
+			question: line[0],
+			answer:   strings.TrimSpace(line[1]),
+		}
+	}
+	return ret
+}
+
+type problem struct {
+	question string
+	answer   string
 }
 
 func exit(file *os.File, nAsked, Ncorrect int) {
