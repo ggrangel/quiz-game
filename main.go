@@ -3,16 +3,24 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
-	fileName := "problems.csv"
+	csvFlag := flag.String(
+		"csv",
+		"problems.csv",
+		"a csv file in the format of 'question,answer' (default 'problems.csv')",
+	)
 
-	file, err := os.Open(fileName)
+	flag.Parse()
+
+	file, err := os.Open(*csvFlag)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,9 +43,14 @@ func main() {
 		nAsked++
 		fmt.Printf("Problem #%d: %s = ", nAsked, record[0])
 		scanner.Scan()
-		answer := scanner.Text()
-		if answer == record[1] {
+		answer := strings.Trim(scanner.Text(), " ")
+		result := strings.Trim(record[1], " ")
+
+		if answer == result {
 			nCorrect++
+		} else {
+			log.Println("answer:", answer)
+			log.Println("response:", record[1])
 		}
 	}
 
